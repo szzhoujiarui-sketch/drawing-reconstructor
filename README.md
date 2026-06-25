@@ -5,12 +5,12 @@ Reconstruct full technical drawings from overlapping scan tiles using feature-ba
 ## Algorithm
 
 1. **Feature Detection** — SIFT keypoints and descriptors on each tile
-2. **Feature Matching** — BFMatcher with Lowe's ratio test (0.75)
-3. **Homography Estimation** — RANSAC for robust alignment
+2. **Pairwise Matching** — BFMatcher with Lowe's ratio test (0.75) for adjacent tiles only
+3. **Homography Composition** — Manhattan-path chaining from each tile to the center tile
 4. **Warping** — `cv2.warpPerspective` to a unified canvas
 5. **Blending** — Distance-transform feathering for seamless seams
 
-For multi-row grids, pairwise homographies are chained row-by-row and column-by-column with overlap-region filtering to constrain matches to the overlapping strip.
+For multi-row grids, adjacent-tile homographies are computed with RANSAC and composed along the shortest Manhattan path to the center tile, avoiding cumulative drift from full-chain propagation.
 
 ## Requirements
 
