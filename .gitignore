@@ -7,3 +7,6 @@ output/
 .venv/
 .env
 *.swp
+*.pyo
+*.pyd
+.Python
