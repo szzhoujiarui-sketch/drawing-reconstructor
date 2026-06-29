@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -39,9 +40,33 @@ def generate_technical_drawing(width: int, height: int) -> np.ndarray:
         y2 = inner_y0 + 200
         cv2.arrowedLine(canvas, (x1, y1), (x2, y2), (0, 0, 0), 1, tipLength=0.3)
 
-    cv2.putText(canvas, "ENGINEERING DRAWING", (inner_x0 + 20, inner_y0 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-    cv2.putText(canvas, "SCALE 1:1", (inner_x1 - 150, inner_y0 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-    cv2.putText(canvas, "DWG NO. 2026-001", (inner_x0 + 20, inner_y1 - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+    cv2.putText(
+        canvas,
+        "ENGINEERING DRAWING",
+        (inner_x0 + 20, inner_y0 + 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (0, 0, 0),
+        2,
+    )
+    cv2.putText(
+        canvas,
+        "SCALE 1:1",
+        (inner_x1 - 150, inner_y0 + 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (0, 0, 0),
+        1,
+    )
+    cv2.putText(
+        canvas,
+        "DWG NO. 2026-001",
+        (inner_x0 + 20, inner_y1 - 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (0, 0, 0),
+        1,
+    )
 
     for i in range(3):
         y = inner_y0 + 300 + i * 150
@@ -52,7 +77,11 @@ def generate_technical_drawing(width: int, height: int) -> np.ndarray:
     return canvas
 
 
-def add_degradation(image: np.ndarray, noise_level: float = 0.01, blur_sigma: float = 0.5) -> np.ndarray:
+def add_degradation(
+    image: np.ndarray,
+    noise_level: float = 0.01,
+    blur_sigma: float = 0.5,
+) -> np.ndarray:
     result = image.copy()
     if blur_sigma > 0:
         ksize = int(blur_sigma * 3) * 2 + 1
@@ -105,17 +134,31 @@ def main():
         tiles = make_tiles(full, rows, cols)
 
         for i, tile in enumerate(tiles):
-            degraded = add_degradation(tile, noise_level=noise, blur_sigma=0.5 if noise > 0 else 0.3)
+            degraded = add_degradation(
+                tile,
+                noise_level=noise,
+                blur_sigma=0.5 if noise > 0 else 0.3,
+            )
             cv2.imwrite(os.path.join(out, f"{name}_tile_{i:02d}.png"), degraded)
 
         try:
-            result = reconstructor.reconstruct(tiles, grid=(rows, cols))
-            cv2.imwrite(os.path.join(out, f"{name}_result.png"), result)
+            result = reconstructor.reconstruct_with_report(tiles, grid=(rows, cols))
+            cv2.imwrite(os.path.join(out, f"{name}_result.png"), result.image)
+            report_path = os.path.join(out, f"{name}_report.json")
+            with open(report_path, "w", encoding="utf-8") as report_file:
+                json.dump(result.report.to_dict(), report_file, indent=2)
 
             ref_gray = cv2.cvtColor(full, cv2.COLOR_BGR2GRAY)
-            res_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-            mse = ((ref_gray.astype(float) - cv2.resize(res_gray, (ref_gray.shape[1], ref_gray.shape[0])).astype(float)) ** 2).mean()
+            res_gray = cv2.cvtColor(result.image, cv2.COLOR_BGR2GRAY)
+            resized = cv2.resize(res_gray, (ref_gray.shape[1], ref_gray.shape[0]))
+            mse = ((ref_gray.astype(float) - resized.astype(float)) ** 2).mean()
             print(f"  Reconstruction saved. MSE vs reference: {mse:.2f}")
+            print(
+                "  Report: "
+                f"edges={len(result.report.edges)}, "
+                f"coverage={result.report.coverage_ratio:.3f}, "
+                f"elapsed_ms={result.report.elapsed_ms:.1f}"
+            )
         except Exception as e:
             print(f"  Failed: {e}")
 

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -21,8 +21,11 @@ class Blender:
             dist = np.clip(dist, 0, None)
             weight = cv2.GaussianBlur(dist, (21, 21), 0)
             max_w = weight.max()
-            if max_w > 0:
+            if np.isfinite(max_w) and max_w > 0:
                 weight = weight / max_w
+            else:
+                weight = mask_f
+            weight = np.nan_to_num(weight, nan=0.0, posinf=1.0, neginf=0.0)
             weight = weight * mask_f
 
             im_f = im.astype(np.float64)
@@ -35,7 +38,10 @@ class Blender:
         return result
 
     @staticmethod
-    def compute_canvas(tiles: List[np.ndarray], homographies: List[np.ndarray]) -> Tuple[np.ndarray, int, int]:
+    def compute_canvas(
+        tiles: List[np.ndarray],
+        homographies: List[np.ndarray],
+    ) -> Tuple[np.ndarray, int, int]:
         corners = []
         for im, H in zip(tiles, homographies):
             h, w = im.shape[:2]
