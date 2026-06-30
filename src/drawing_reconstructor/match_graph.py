@@ -82,12 +82,16 @@ class MatchGraph:
                     homography_to_current=edge.homography,
                 )
             )
+            try:
+                inv_homography = np.linalg.inv(edge.homography)
+            except np.linalg.LinAlgError:
+                continue
             adjacency.setdefault(edge.target, []).append(
                 _DirectedEdge(
                     target=edge.source,
                     cost=cost,
                     confidence=edge.confidence,
-                    homography_to_current=np.linalg.inv(edge.homography),
+                    homography_to_current=inv_homography,
                 )
             )
         return adjacency
