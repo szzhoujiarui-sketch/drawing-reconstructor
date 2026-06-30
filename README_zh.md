@@ -2,6 +2,8 @@
 
 基于特征匹配和图像拼接，从多个重叠扫描切片中重建完整技术图纸。
 
+[English](README.md)
+
 ## 算法流程
 
 1. Feature Detection：对每个切片提取 SIFT keypoints 和 descriptors。

@@ -2,6 +2,8 @@
 
 Reconstruct full technical drawings from overlapping scan tiles using feature-based image registration and stitching.
 
+[中文](README_zh.md)
+
 ## Algorithm
 
 1. **Feature Detection** — SIFT keypoints and descriptors on each tile
