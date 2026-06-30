@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
-from drawing_reconstructor.blender import Blender
+from drawing_reconstructor.blender import Blender, MAX_CANVAS_AREA
 from drawing_reconstructor.feature_matcher import FeatureMatcher
 from drawing_reconstructor.homography_estimator import HomographyEstimator
 from drawing_reconstructor.match_graph import MatchGraph
@@ -20,6 +20,7 @@ class DrawingReconstructor:
         ransac_thresh: float = 4.0,
         min_inliers: int = 4,
         min_confidence: float = 0.05,
+        max_canvas_area: Optional[int] = None,
     ):
         self.matcher = FeatureMatcher(detector, ratio_thresh)
         self.homography = HomographyEstimator()
@@ -27,6 +28,7 @@ class DrawingReconstructor:
         self.ransac_thresh = ransac_thresh
         self.min_inliers = min_inliers
         self.min_confidence = min_confidence
+        self.max_canvas_area = max_canvas_area if max_canvas_area is not None else MAX_CANVAS_AREA
 
     def reconstruct(
         self,
@@ -62,7 +64,9 @@ class DrawingReconstructor:
             )
 
         homographies = plan.homographies
-        offset, canvas_w, canvas_h = Blender.compute_canvas(tiles, homographies)
+        offset, canvas_w, canvas_h = Blender.compute_canvas(
+            tiles, homographies, max_canvas_area=self.max_canvas_area
+        )
 
         warped_images: List[np.ndarray] = []
         masks: List[np.ndarray] = []
@@ -125,8 +129,16 @@ class DrawingReconstructor:
         if not matches:
             return None
 
-        src_pts = np.float32([feats_b[0][m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([feats_a[0][m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+        kp_a, kp_b = feats_a[0], feats_b[0]
+        valid_matches = [
+            m for m in matches
+            if 0 <= m.queryIdx < len(kp_a) and 0 <= m.trainIdx < len(kp_b)
+        ]
+        if len(valid_matches) < 4:
+            return None
+
+        src_pts = np.float32([kp_b[m.trainIdx].pt for m in valid_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp_a[m.queryIdx].pt for m in valid_matches]).reshape(-1, 1, 2)
 
         if len(src_pts) < 4:
             return None
