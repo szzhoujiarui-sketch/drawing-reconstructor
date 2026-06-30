@@ -4,12 +4,12 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
-from drawing_reconstructor.blender import Blender, MAX_CANVAS_AREA
+from drawing_reconstructor.blender import MAX_CANVAS_AREA, Blender
 from drawing_reconstructor.feature_matcher import FeatureMatcher
 from drawing_reconstructor.homography_estimator import HomographyEstimator
 from drawing_reconstructor.match_graph import MatchGraph
 from drawing_reconstructor.models import MatchEdge, ReconstructionReport, ReconstructionResult
-from drawing_reconstructor.tile_loader import TileLoader
+from drawing_reconstructor.tile_loader import MAX_TILE_AREA, TileLoader
 
 
 class DrawingReconstructor:
@@ -21,6 +21,7 @@ class DrawingReconstructor:
         min_inliers: int = 4,
         min_confidence: float = 0.05,
         max_canvas_area: Optional[int] = None,
+        max_tile_area: Optional[int] = None,
     ):
         self.matcher = FeatureMatcher(detector, ratio_thresh)
         self.homography = HomographyEstimator()
@@ -29,6 +30,7 @@ class DrawingReconstructor:
         self.min_inliers = min_inliers
         self.min_confidence = min_confidence
         self.max_canvas_area = max_canvas_area if max_canvas_area is not None else MAX_CANVAS_AREA
+        self.max_tile_area = max_tile_area if max_tile_area is not None else MAX_TILE_AREA
 
     def reconstruct(
         self,
@@ -46,13 +48,13 @@ class DrawingReconstructor:
     ) -> ReconstructionResult:
         started_at = perf_counter()
         if grid is None:
-            grid = TileLoader.infer_grid(tiles, (1, len(tiles)))
+            grid = TileLoader.infer_grid(tiles, (1, len(tiles)), max_tile_area=self.max_tile_area)
         rows, cols = grid
         if rows <= 0 or cols <= 0:
             raise ValueError(f"Grid dimensions must be positive, got {grid}")
         if len(tiles) != rows * cols:
             raise ValueError(f"Expected {rows*cols} tiles for {rows}x{cols} grid, got {len(tiles)}")
-        TileLoader.validate_tiles(tiles)
+        TileLoader.validate_tiles(tiles, max_tile_area=self.max_tile_area)
 
         edges = self._build_match_edges(tiles, rows, cols)
         reference_tile = rows // 2 * cols + cols // 2
@@ -147,14 +149,15 @@ class DrawingReconstructor:
             if H is None or mask is None:
                 return None
             inliers = int(mask.sum())
-            inlier_ratio = inliers / max(len(matches), 1)
+            valid_match_count = len(valid_matches)
+            inlier_ratio = inliers / max(valid_match_count, 1)
             reprojection_error = self._reprojection_error(src_pts, dst_pts, H, mask)
-            confidence = self._edge_confidence(len(matches), inliers, reprojection_error)
+            confidence = self._edge_confidence(valid_match_count, inliers, reprojection_error)
             if inliers >= self.min_inliers and confidence >= self.min_confidence:
                 return MatchEdge(
                     source=source_idx,
                     target=target_idx,
-                    matches=len(matches),
+                    matches=valid_match_count,
                     inliers=inliers,
                     inlier_ratio=inlier_ratio,
                     reprojection_error=reprojection_error,

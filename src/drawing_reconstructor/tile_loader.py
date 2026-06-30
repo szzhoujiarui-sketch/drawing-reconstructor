@@ -1,9 +1,11 @@
 import glob
 import os
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+
+MAX_TILE_AREA = 50_000_000
 
 
 class TileLoader:
@@ -21,8 +23,12 @@ class TileLoader:
         return tiles
 
     @staticmethod
-    def infer_grid(tiles: List[np.ndarray], expected_grid: Tuple[int, int]) -> Tuple[int, int]:
-        TileLoader.validate_tiles(tiles)
+    def infer_grid(
+        tiles: List[np.ndarray],
+        expected_grid: Tuple[int, int],
+        max_tile_area: Optional[int] = None,
+    ) -> Tuple[int, int]:
+        TileLoader.validate_tiles(tiles, max_tile_area=max_tile_area)
         if expected_grid[0] <= 0 or expected_grid[1] <= 0:
             raise ValueError(f"Grid dimensions must be positive, got {expected_grid}")
         if len(tiles) == expected_grid[0] * expected_grid[1]:
@@ -39,12 +45,15 @@ class TileLoader:
         return rows, cols
 
     @staticmethod
-    def validate_tiles(tiles: List[np.ndarray]) -> None:
+    def validate_tiles(tiles: List[np.ndarray], max_tile_area: Optional[int] = None) -> None:
         if not tiles:
             raise ValueError("Tile list is empty")
         if tiles[0] is None:
             raise ValueError("Tile 0 is not a valid image")
         h, w = tiles[0].shape[:2]
+        limit = max_tile_area if max_tile_area is not None else MAX_TILE_AREA
+        if limit <= 0:
+            raise ValueError(f"Tile area limit must be positive, got {limit}")
         for i, t in enumerate(tiles):
             if t is None:
                 raise ValueError(f"Tile {i} is not a valid image")
@@ -52,3 +61,11 @@ class TileLoader:
                 raise ValueError(f"Tile {i} must be grayscale or color image, got shape {t.shape}")
             if t.shape[:2] != (h, w):
                 raise ValueError(f"Tile {i} size {t.shape[:2]} != reference {h}x{w}")
+            tile_h, tile_w = t.shape[:2]
+            if tile_h <= 0 or tile_w <= 0:
+                raise ValueError(f"Tile {i} dimensions must be positive, got {tile_h}x{tile_w}")
+            if tile_h * tile_w > limit:
+                raise ValueError(
+                    f"Tile {i} area {tile_h * tile_w} exceeds limit {limit} "
+                    f"({tile_h}x{tile_w})"
+                )

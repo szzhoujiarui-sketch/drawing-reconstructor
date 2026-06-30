@@ -72,6 +72,13 @@ def test_compute_canvas_rejects_excessive_canvas_area():
         Blender.compute_canvas([tile], [H], max_canvas_area=10000)
 
 
+def test_compute_canvas_rejects_extreme_finite_coordinates_before_integer_cast():
+    tile = np.ones((16, 16, 3), dtype=np.uint8)
+    H = np.array([[1e20, 0, 0], [0, 1e20, 0], [0, 0, 1]], dtype=np.float64)
+    with pytest.raises(ValueError, match="Canvas area"):
+        Blender.compute_canvas([tile], [H], max_canvas_area=10000)
+
+
 def test_compute_canvas_rejects_zero_or_negative_dimensions():
     tile = np.ones((16, 16, 3), dtype=np.uint8)
     H_zero = np.eye(3, dtype=np.float64) * 0
@@ -167,6 +174,15 @@ def test_get_match_points_filters_out_of_bounds_indices():
     src, dst = FeatureMatcher.get_match_points(bad, kp1, kp2)
     assert src.size == 0
     assert dst.size == 0
+
+
+def test_tile_loader_rejects_excessive_tile_area_before_feature_extraction():
+    class FakeLargeTile:
+        shape = (100000, 100000, 3)
+        ndim = 3
+
+    with pytest.raises(ValueError, match="Tile 0 area"):
+        TileLoader.validate_tiles([FakeLargeTile()])
 
 
 def test_feather_blend_rejects_zero_or_negative_dimensions():

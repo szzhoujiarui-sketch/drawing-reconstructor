@@ -66,21 +66,25 @@ class Blender:
         if not np.all(np.isfinite(all_pts)):
             raise ValueError("Transformed corner coordinates contain non-finite values")
 
-        min_x, min_y = np.floor(all_pts.min(axis=0)).astype(int)
-        max_x, max_y = np.ceil(all_pts.max(axis=0)).astype(int)
-        width = int(max_x - min_x)
-        height = int(max_y - min_y)
+        min_x_f, min_y_f = np.floor(all_pts.min(axis=0))
+        max_x_f, max_y_f = np.ceil(all_pts.max(axis=0))
+        width_f = max_x_f - min_x_f
+        height_f = max_y_f - min_y_f
 
         limit = max_canvas_area if max_canvas_area is not None else MAX_CANVAS_AREA
-        if width <= 0 or height <= 0:
-            raise ValueError(f"Canvas dimensions must be positive, got {width}x{height}")
-        if not math.isfinite(width) or not math.isfinite(height):
-            raise ValueError(f"Canvas dimensions must be finite, got {width}x{height}")
-        if width * height > limit:
+        if limit <= 0:
+            raise ValueError(f"Canvas area limit must be positive, got {limit}")
+        if not math.isfinite(width_f) or not math.isfinite(height_f):
+            raise ValueError(f"Canvas dimensions must be finite, got {width_f}x{height_f}")
+        if width_f <= 0 or height_f <= 0:
+            raise ValueError(f"Canvas dimensions must be positive, got {width_f}x{height_f}")
+        if width_f > limit / height_f:
             raise ValueError(
-                f"Canvas area {width * height} exceeds limit {limit} "
-                f"({width}x{height})"
+                f"Canvas area exceeds limit {limit} "
+                f"({width_f}x{height_f})"
             )
 
+        min_x, min_y = int(min_x_f), int(min_y_f)
+        width, height = int(width_f), int(height_f)
         offset = np.array([[1, 0, -min_x], [0, 1, -min_y], [0, 0, 1]], dtype=np.float64)
         return offset, width, height
