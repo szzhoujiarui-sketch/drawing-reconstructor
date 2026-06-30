@@ -136,7 +136,7 @@ def test_pairwise_match_edge_keeps_valid_indices(monkeypatch):
     tile_a = np.ones((32, 32, 3), dtype=np.uint8) * 64
     tile_b = np.ones((32, 32, 3), dtype=np.uint8) * 128
 
-    kp = [cv2.KeyPoint(float(x), float(x), 1) for x in range(4)]
+    kp = [cv2.KeyPoint(float(x), float(y), 1) for x, y in [(0, 0), (10, 0), (0, 10), (10, 10)]]
     des = np.ones((4, 128), dtype=np.float32)
     matches = [
         cv2.DMatch(_queryIdx=i, _trainIdx=i, _distance=1.0, _imgIdx=0)
@@ -164,6 +164,17 @@ def test_homography_estimator_rejects_non_finite_matrix(monkeypatch):
     monkeypatch.setattr("cv2.findHomography", lambda *a, **kw: (H_nan, mask))
     pts = np.ones((4, 1, 2), dtype=np.float32)
     with pytest.raises(RuntimeError, match="non-finite"):
+        HomographyEstimator.estimate(pts, pts)
+
+
+def test_estimator_rejects_near_singular_matrix(monkeypatch):
+    H_singular = np.array(
+        [[1, 2, 3], [2, 4, 6], [0, 0, 1]], dtype=np.float64
+    )
+    mask = np.ones((4, 1), dtype=np.uint8)
+    monkeypatch.setattr("cv2.findHomography", lambda *a, **kw: (H_singular, mask))
+    pts = np.ones((4, 1, 2), dtype=np.float32)
+    with pytest.raises(RuntimeError, match="singular"):
         HomographyEstimator.estimate(pts, pts)
 
 

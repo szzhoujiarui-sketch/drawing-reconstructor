@@ -18,6 +18,8 @@ class HomographyEstimator:
             raise RuntimeError("Homography estimation failed")
         if not np.all(np.isfinite(H)):
             raise RuntimeError("Homography matrix contains non-finite values")
+        if abs(np.linalg.det(H)) < 1e-12:
+            raise RuntimeError("Homography matrix is singular")
         return H, mask
 
     @staticmethod

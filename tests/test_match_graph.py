@@ -44,3 +44,20 @@ def test_match_graph_reports_disconnected_tiles():
     assert plan.connected_tiles == [0, 1]
     assert plan.failed_tiles == [2]
     assert plan.warnings == ["Disconnected tiles: [2]"]
+
+
+def test_match_graph_survives_singular_homography():
+    singular_H = np.array(
+        [[1, 2, 3], [2, 4, 6], [0, 0, 1]], dtype=np.float64
+    )
+    edges = [
+        MatchEdge(
+            source=0, target=1, matches=20, inliers=15,
+            inlier_ratio=0.75, reprojection_error=0.5,
+            confidence=0.9, homography=singular_H,
+        )
+    ]
+    graph = MatchGraph(2, edges)
+    plan = graph.plan_homographies(reference_tile=0)
+    assert plan.connected_tiles == [0, 1]
+    assert plan.failed_tiles == []
