@@ -14,8 +14,10 @@ class HomographyEstimator:
         if len(src_pts) < 4:
             raise ValueError(f"Need at least 4 point correspondences, got {len(src_pts)}")
         H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, ransac_thresh)
-        if H is None:
+        if H is None or H.shape != (3, 3):
             raise RuntimeError("Homography estimation failed")
+        if not np.all(np.isfinite(H)):
+            raise RuntimeError("Homography matrix contains non-finite values")
         return H, mask
 
     @staticmethod

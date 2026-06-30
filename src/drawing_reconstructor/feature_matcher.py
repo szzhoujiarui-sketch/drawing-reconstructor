@@ -42,6 +42,12 @@ class FeatureMatcher:
     def get_match_points(matches: List[cv2.DMatch], kp1, kp2) -> Tuple[np.ndarray, np.ndarray]:
         if not matches:
             return np.empty((0, 2)), np.empty((0, 2))
-        src = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-        dst = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+        valid = [
+            m for m in matches
+            if 0 <= m.queryIdx < len(kp1) and 0 <= m.trainIdx < len(kp2)
+        ]
+        if not valid:
+            return np.empty((0, 2)), np.empty((0, 2))
+        src = np.float32([kp1[m.queryIdx].pt for m in valid]).reshape(-1, 1, 2)
+        dst = np.float32([kp2[m.trainIdx].pt for m in valid]).reshape(-1, 1, 2)
         return src, dst
